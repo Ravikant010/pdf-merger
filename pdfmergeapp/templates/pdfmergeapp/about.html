@@ -1,0 +1,33 @@
+{% extends 'pdfmergeapp/base.html' %}
+
+{% block title %}About - PDF Merge Tool{% endblock %}
+
+{% block content %}
+<div style="line-height: 1.6;">
+    <h2 style="color: #2196F3; margin-bottom: 20px;">About PDF Merge Tool</h2>
+    
+    <p style="margin-bottom: 20px;">
+        This web application allows you to easily merge multiple PDF files into a single document. 
+        Built with Django and PyPDF2, it provides a simple drag-and-drop interface for combining your PDFs.
+    </p>
+
+    <h3 style="color: #333; margin: 30px 0 15px 0;">Features</h3>
+    <ul style="margin-left: 20px; margin-bottom: 20px;">
+        <li>Drag and drop multiple PDF files</li>
+        <li>Click to browse and select files</li>
+        <li>Real-time file validation</li>
+        <li>Automatic download of merged PDF</li>
+        <li>File size display</li>
+        <li>Remove files before merging</li>
+    </ul>
+
+    <h3 style="color: #333; margin: 30px 0 15px 0;">How to Use</h3>
+    <ol style="margin-left: 20px;">
+        <li>Drop PDF files onto the upload area or click to browse</li>
+        <li>Review the selected files in the list</li>
+        <li>Remove any unwanted files using the × button</li>
+        <li>Click "Merge PDFs" when you have at least 2 files</li>
+        <li>The merged PDF will automatically download</li>
+    </ol>
+</div>
+{% endblock %}

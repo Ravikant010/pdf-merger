@@ -1,0 +1,296 @@
+{% extends 'pdfmergeapp/base.html' %}
+
+{% block extra_css %}
+<style>
+    .drop-area {
+        border: 3px dashed #ddd;
+        border-radius: 10px;
+        padding: 60px 20px;
+        text-align: center;
+        font-size: 1.2rem;
+        color: #666;
+        cursor: pointer;
+        background: #fafafa;
+        transition: all 0.3s ease;
+        margin-bottom: 30px;
+    }
+    .drop-area:hover {
+        border-color: #2196F3;
+        background: #f0f8ff;
+    }
+    .drop-area.dragover {
+        border-color: #2196F3;
+        background: #e3f2fd;
+        transform: scale(1.02);
+    }
+    .drop-area i {
+        font-size: 3rem;
+        color: #2196F3;
+        margin-bottom: 20px;
+    }
+    .file-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        border-left: 4px solid #2196F3;
+    }
+    .file-info {
+        display: flex;
+        align-items: center;
+    }
+    .file-info i {
+        color: #e53e3e;
+        margin-right: 15px;
+        font-size: 1.5rem;
+    }
+    .file-details {
+        display: flex;
+        flex-direction: column;
+    }
+    .file-name {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    .file-size {
+        font-size: 0.9rem;
+        color: #666;
+    }
+    .remove-file {
+        background: #e53e3e;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        cursor: pointer;
+        transition: background 0.3s;
+    }
+    .remove-file:hover {
+        background: #c53030;
+    }
+    .merge-btn {
+        background: linear-gradient(135deg, #4CAF50, #45a049);
+        color: white;
+        border: none;
+        padding: 15px 40px;
+        font-size: 1.1rem;
+        border-radius: 25px;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: block;
+        margin: 30px auto 0;
+        min-width: 200px;
+    }
+    .merge-btn:hover:not(:disabled) {
+        background: linear-gradient(135deg, #45a049, #4CAF50);
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+    }
+    .merge-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+    .empty-state {
+        text-align: center;
+        color: #999;
+        margin: 20px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="upload-area">
+    <div id="drop-area" class="drop-area">
+        <i class="fas fa-cloud-upload-alt"></i>
+        <div>
+            <strong>Drop PDF files here</strong> or <strong>click to browse</strong>
+        </div>
+        <small>Select multiple PDF files to merge them into one document</small>
+    </div>
+    
+    <input type="file" id="file-input" multiple accept="application/pdf" style="display: none;">
+    
+    <div id="file-list-container">
+        <div class="empty-state" id="empty-state">
+            <i class="fas fa-file-pdf" style="font-size: 2rem; color: #ddd; margin-bottom: 10px;"></i>
+            <p>No files selected yet</p>
+        </div>
+        <div id="file-list" class="file-list"></div>
+    </div>
+    
+    <button id="merge-btn" class="merge-btn" style="display: none;" disabled>
+        <i class="fas fa-compress-arrows-alt"></i> Merge PDFs
+    </button>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dropArea = document.getElementById('drop-area');
+    const fileInput = document.getElementById('file-input');
+    const fileList = document.getElementById('file-list');
+    const mergeBtn = document.getElementById('merge-btn');
+    const emptyState = document.getElementById('empty-state');
+    
+    let selectedFiles = [];
+
+    // Click to select files
+    dropArea.addEventListener('click', () => fileInput.click());
+
+    // Drag and drop events
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, () => dropArea.classList.add('dragover'), false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, () => dropArea.classList.remove('dragover'), false);
+    });
+
+    dropArea.addEventListener('drop', handleDrop, false);
+    fileInput.addEventListener('change', handleFileSelect, false);
+
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        handleFiles(files);
+    }
+
+    function handleFileSelect(e) {
+        const files = e.target.files;
+        handleFiles(files);
+    }
+
+    function handleFiles(files) {
+        const pdfFiles = Array.from(files).filter(file => 
+            file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+        );
+
+        selectedFiles = pdfFiles;
+        updateFileList();
+        updateMergeButton();
+    }
+
+    function updateFileList() {
+        fileList.innerHTML = '';
+        
+        if (selectedFiles.length === 0) {
+            emptyState.style.display = 'block';
+            return;
+        }
+        
+        emptyState.style.display = 'none';
+
+        selectedFiles.forEach((file, index) => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            fileItem.innerHTML = `
+                <div class="file-info">
+                    <i class="fas fa-file-pdf"></i>
+                    <div class="file-details">
+                        <div class="file-name">${file.name}</div>
+                        <div class="file-size">${formatFileSize(file.size)}</div>
+                    </div>
+                </div>
+                <button class="remove-file" onclick="removeFile(${index})">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            fileList.appendChild(fileItem);
+        });
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    window.removeFile = function(index) {
+        selectedFiles.splice(index, 1);
+        updateFileList();
+        updateMergeButton();
+    };
+
+    function updateMergeButton() {
+        if (selectedFiles.length >= 2) {
+            mergeBtn.style.display = 'block';
+            mergeBtn.disabled = false;
+        } else {
+            mergeBtn.style.display = 'none';
+            mergeBtn.disabled = true;
+        }
+    }
+
+    mergeBtn.addEventListener('click', async function() {
+        if (selectedFiles.length < 2) {
+            alert('Please select at least 2 PDF files to merge.');
+            return;
+        }
+
+        const formData = new FormData();
+        selectedFiles.forEach(file => {
+            formData.append('pdf_files', file);
+        });
+
+        mergeBtn.disabled = true;
+        mergeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Merging...';
+
+        try {
+            const response = await fetch('/merge/', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `merged_pdf_${new Date().getTime()}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+
+                alert(`Successfully merged ${selectedFiles.length} PDF files!`);
+                
+                // Reset form
+                selectedFiles = [];
+                updateFileList();
+                updateMergeButton();
+                fileInput.value = '';
+                
+            } else {
+                const errorData = await response.json();
+                alert(errorData.error || 'Error merging PDFs');
+            }
+        } catch (error) {
+            alert('Network error. Please try again.');
+        } finally {
+            mergeBtn.disabled = false;
+            mergeBtn.innerHTML = '<i class="fas fa-compress-arrows-alt"></i> Merge PDFs';
+        }
+    });
+});
+</script>
+{% endblock %}
